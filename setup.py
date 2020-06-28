@@ -6,7 +6,6 @@ core_ext = Extension('fastadj.core',
     define_macros = [('MAJOR_VERSION', '0'), ('MINOR_VERSION', '1')],
     include_dirs = [NFFTDIR + '/include', NFFTDIR + '/applications/fastsum'],
     libraries = ['fastsumjulia'],
-    # library_dirs = [NFFTDIR + '/julia/fastsum'],
     sources = ['fastadj/core.c'])
 
 setup(name = 'fastadj',
