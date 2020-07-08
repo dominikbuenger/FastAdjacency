@@ -35,18 +35,17 @@ class AdjacencyMatrix():
             setup = AccuracySetup(preset=setup)
         
         self.setup = setup
-        self.sigma = sigma
         self.scaling_factor = 1
         self.core = None
         
+        self._sigma = sigma
         self.points = points
         
         if diagonal != 0:
             self.diagonal = diagonal
     
-    def _setup_core(self, d, scaling_factor):
-        self.scaling_factor = scaling_factor
-        self.core = AdjacencyCore(d, scaling_factor*self.sigma, 
+    def _setup_core(self, d):
+        self.core = AdjacencyCore(d, self.scaling_factor*self._sigma, 
                                   self.setup.N, self.setup.p, self.setup.m, self.setup.eps)
     
     @property
@@ -60,6 +59,17 @@ class AdjacencyMatrix():
     @property
     def scaled_sigma(self):
         return self.core.sigma
+    
+    @property
+    def sigma(self):
+        return self._sigma
+    
+    @sigma.setter
+    def sigma(self, sigma):
+        points = self.core.points
+        self._sigma = sigma
+        self._setup_core(points.shape[1])
+        self.core.points = points
     
     @property
     def scaled_points(self):
@@ -84,7 +94,8 @@ class AdjacencyMatrix():
                 d != self.core.d or \
                 radius*self.scaling_factor > allowed_radius or \
                 radius*self.scaling_factor < 0.125:
-            self._setup_core(d, allowed_radius / radius)
+            self.scaling_factor = allowed_radius / radius
+            self._setup_core(d)
             
         self.core.points = points * self.scaling_factor
 
