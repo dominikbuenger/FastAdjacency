@@ -46,7 +46,7 @@ def fixed_adjacency_matrix(points, sigma, setup='default'):
     return adj
 
 
-def normalized_adjacency_eigs(adj, k=6, tol=0, method=3, shift=1, one_shift=2):
+def normalized_adjacency_eigs(adj, k=6, tol=0, method='krylov-schur', shift=1, one_shift=2):
     n = adj.n
     u1 = np.sqrt(adj.apply(np.ones(n)))
     d_invsqrt = 1 / u1
@@ -54,26 +54,6 @@ def normalized_adjacency_eigs(adj, k=6, tol=0, method=3, shift=1, one_shift=2):
     
     if k == 1:
         return np.array([1.0]), u1[:, np.newaxis]
-    
-    # def signless_laplacian_matvec(v):
-    #     return v + d_invsqrt * adj.apply(d_invsqrt * v)
-    
-    # signless_laplacian = LinearOperator((n,n), dtype=np.float64, matvec=signless_laplacian_matvec)
-    
-    # w, U = eigsh(signless_laplacian, k=k, tol=tol)
-    
-    # w = w - 1
-    
-    
-    # def normalized_adj_matvec(v):
-    #     return d_invsqrt * adj.apply(d_invsqrt * v)
-    
-    # normalized_adjacency = LinearOperator((n,n), dtype=np.float64, matvec=normalized_adj_matvec)
-    
-    # w, U = eigsh(normalized_adjacency, k=k, which='LA', tol=tol)
-    
-    
-    # return w, U
 
     def matvec(v):
         w = d_invsqrt * adj.apply(d_invsqrt * v)
@@ -86,14 +66,14 @@ def normalized_adjacency_eigs(adj, k=6, tol=0, method=3, shift=1, one_shift=2):
     if one_shift != 0:
         k -= 1
     
-    if method == 1:
+    if method == 'arpack-fortran':
         if shift != 0 or one_shift != 0:
-            raise ValueError("Eigenvalue computation method 1 is incompatible with shifts")
+            raise ValueError("Eigenvalue computation method 'arpack-fortran' is incompatible with shifts")
         w, U = adj.normalized_eigs(k, tol=tol)
-    elif method == 2:
+    elif method == 'arpack-scipy':
         operator = LinearOperator((n,n), dtype=np.float64, matvec=matvec)
         w, U = eigsh(operator, k=k, which='LA' if shift == 0 else 'LM', tol=tol)
-    elif method == 3:
+    elif method == 'krylov-schur':
         w, U = krylov_schur_eigs(matvec, n, k=k, tol=tol)
     else:
         raise ValueError("Unknown eigenvalue computation method: {}".format(method))
@@ -119,44 +99,11 @@ def normalized_laplacian_norm(adj, tol=0):
         return v - d_invsqrt * adj.apply(d_invsqrt * v)
     
     nrm = eigsh(LinearOperator((n,n), dtype=np.float64, matvec=matvec),
-              k = 1,
-              which = 'LM',
-              tol = tol,
-              return_eigenvectors = False)[0]
+                k = 1,
+                which = 'LM',
+                tol = tol,
+                return_eigenvectors = False)[0]
     
     return nrm
     
     
-
-def normalized_adjacency_nonzero_eigs(adj, k=6, tol=0, use_signless=False, return_zero_ev=False):
-    
-    n = adj.n
-    u1 = np.sqrt(adj.apply(np.ones(n)))
-    d_invsqrt = 1 / u1
-    
-    if use_signless:
-            
-        def projected_signless_laplacian_matvec(v):
-            v += d_invsqrt * adj.apply(d_invsqrt * v)
-            return v - (u1 @ v) * u1
-        
-        projected_signless_laplacian = LinearOperator((n,n), dtype=np.float64, matvec=projected_signless_laplacian_matvec)
-        
-        w, U = eigsh(projected_signless_laplacian, k=k, which='LA', tol=tol)
-        w -= 1
-        
-    else:
-        def normalized_projected_adj_matvec(v):
-            v = d_invsqrt * adj.apply(d_invsqrt * v)
-            return v - (u1 @ v) * u1
-        
-        normalized_projected_adjacency = LinearOperator((n,n), dtype=np.float64, matvec=normalized_projected_adj_matvec)
-        
-        w, U = eigsh(normalized_projected_adjacency, k=k, which='LA', tol=tol)
-        
-    
-    
-    if return_zero_ev:
-        return w, U, u1
-    else:
-        return w, U
