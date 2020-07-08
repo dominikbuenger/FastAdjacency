@@ -7,7 +7,6 @@ from time import perf_counter as timer
 n = 10000
 d = 3
 sigma = 1.0
-tol = 1e-3
 numev = 11
 
 x = np.random.randn(n, d)
@@ -23,7 +22,7 @@ print("Avg/min/max degree:", degrees.mean(), degrees.min(), degrees.max())
 
 tic = timer()
 
-nrm = adj.normalized_laplacian_norm(tol=tol)
+nrm = adj.normalized_laplacian_norm()
 
 time_nrm = timer() - tic
 print("Normalized Laplacian norm: {}   (computed in {} seconds)".format(nrm, time_nrm))
@@ -31,11 +30,7 @@ print("Normalized Laplacian norm: {}   (computed in {} seconds)".format(nrm, tim
 
 tic = timer()
 
-w, U = adj.normalized_eigs(numev,
-                           method = 'krylov-schur',
-                           shift = 1,
-                           one_shift = 2,
-                           tol=tol)
+w, U = adj.normalized_eigs(numev)
 
 time_eigs = timer() - tic
 print("Time for eigenvalue computation: {} seconds".format(time_eigs))

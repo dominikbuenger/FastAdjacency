@@ -47,7 +47,7 @@ class AdjacencyMatrix():
     def _setup_core(self, d, scaling_factor):
         self.scaling_factor = scaling_factor
         self.core = AdjacencyCore(d, scaling_factor*self.sigma, 
-                                    self.setup.N, self.setup.p, self.setup.m, self.setup.eps)
+                                  self.setup.N, self.setup.p, self.setup.m, self.setup.eps)
     
     @property
     def d(self):
@@ -56,6 +56,10 @@ class AdjacencyMatrix():
     @property
     def n(self):
         return self.core.n
+    
+    @property
+    def scaled_sigma(self):
+        return self.core.sigma
     
     @property
     def scaled_points(self):
@@ -74,7 +78,7 @@ class AdjacencyMatrix():
         points -= self.points_center
         
         radius = np.sqrt((points ** 2).sum(axis=1).max())
-        allowed_radius = 0.2499 - 0.5*self.core.eps
+        allowed_radius = 0.2499 - 0.5*self.setup.eps
         
         if self.core is None or d != self.core.d or radius*self.scaling_factor > allowed_radius:
             self._setup_core(d, allowed_radius / radius)
@@ -144,6 +148,9 @@ class AdjacencyMatrix():
 
 
     def normalized_laplacian_norm(self, tol=None):
+        if tol is None:
+            tol = self.setup.eigs_tol
+            
         n = self.core.n
         d_invsqrt = 1 / np.sqrt(self.core.apply(np.ones(n)))
         
