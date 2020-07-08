@@ -12,7 +12,9 @@
 #include "fastsum.h"
 #include "kernels.h"
 
+#ifdef BUILD_EIGS
 #include "arpack.h"
+#endif
 
 typedef struct {
     PyObject_HEAD
@@ -28,19 +30,19 @@ typedef struct {
     int n;
     
     fastsum_plan* fastsum;
-} AdjacencyMatrixObject;
+} AdjacencyCoreObject;
 
 static int
-check_fastsum(AdjacencyMatrixObject* self)
+check_fastsum(AdjacencyCoreObject* self)
 {
     if (self->fastsum)
         return 1;
-    PyErr_SetString(PyExc_RuntimeError, "Invalid fastsum object");
+    PyErr_SetString(PyExc_RuntimeError, "Invalid NFFT fastsum object");
     return 0;
 }
 
 static void
-remove_points(AdjacencyMatrixObject* self)
+remove_points(AdjacencyCoreObject* self)
 {
     if (self->n) {
        	fastsum_finalize_target_nodes(self->fastsum);
@@ -55,7 +57,7 @@ remove_points(AdjacencyMatrixObject* self)
 }
 
 static void 
-AdjacencyMatrix_dealloc(AdjacencyMatrixObject* self)
+AdjacencyCore_dealloc(AdjacencyCoreObject* self)
 {
     if (self->fastsum) {
         remove_points(self);
@@ -68,7 +70,7 @@ AdjacencyMatrix_dealloc(AdjacencyMatrixObject* self)
 }
 
 static int
-AdjacencyMatrix_init(AdjacencyMatrixObject *self, PyObject *args, PyObject *kwds)
+AdjacencyCore_init(AdjacencyCoreObject *self, PyObject *args, PyObject *kwds)
 {
     if (!PyArg_ParseTuple(args, "idiiid|i", &self->d, &self->sigma, &self->N, &self->p, &self->m, &self->eps, &self->NN))
         return -1;
@@ -97,7 +99,7 @@ AdjacencyMatrix_init(AdjacencyMatrixObject *self, PyObject *args, PyObject *kwds
 
 
 static PyObject *
-AdjacencyMatrix_getpoints(AdjacencyMatrixObject* self, void* closure)
+AdjacencyCore_getpoints(AdjacencyCoreObject* self, void* closure)
 {
     npy_intp dims[2];
     PyObject* array;
@@ -122,7 +124,7 @@ AdjacencyMatrix_getpoints(AdjacencyMatrixObject* self, void* closure)
 }
 
 static int
-AdjacencyMatrix_setpoints(AdjacencyMatrixObject* self, PyObject* arg, void* closure)
+AdjacencyCore_setpoints(AdjacencyCoreObject* self, PyObject* arg, void* closure)
 {
     int i, j, n, d=self->d;
     PyObject* item;
@@ -138,12 +140,12 @@ AdjacencyMatrix_setpoints(AdjacencyMatrixObject* self, PyObject* arg, void* clos
         return 0;
     
     if (!PyArray_Converter(arg, (PyObject**) &array)) {
-        PyErr_Format(PyExc_TypeError, "AdjacencyMatrix.points must be a 2D numpy array with %d columns", d);
+        PyErr_Format(PyExc_TypeError, "AdjacencyCore.points must be a 2D numpy array with %d columns", d);
         return -1;
     }
     
     if (PyArray_NDIM(array) != 2 || PyArray_DIM(array, 1) != d) {
-        PyErr_Format(PyExc_TypeError, "AdjacencyMatrix.points must be a 2D numpy array with %d columns", d);
+        PyErr_Format(PyExc_TypeError, "AdjacencyCore.points must be a 2D numpy array with %d columns", d);
         Py_DECREF(array);
         return -1;
     }
@@ -166,7 +168,7 @@ AdjacencyMatrix_setpoints(AdjacencyMatrixObject* self, PyObject* arg, void* clos
         
         // PyFloat_AsDouble simply returns -1.0 on errors
         if (PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "AdjacencyMatrix.points items must be floating point numbers");
+            PyErr_SetString(PyExc_TypeError, "AdjacencyCore.points items must be floating point numbers");
             Py_DECREF(array);
             remove_points(self);
             return -1;
@@ -180,7 +182,7 @@ AdjacencyMatrix_setpoints(AdjacencyMatrixObject* self, PyObject* arg, void* clos
 }
 
 static PyObject *
-AdjacencyMatrix_apply(AdjacencyMatrixObject* self, PyObject* args, PyObject *keywds)
+AdjacencyCore_apply(AdjacencyCoreObject* self, PyObject* args, PyObject *keywds)
 {
     int i, n, exact=0;
     PyArrayObject* array;
@@ -193,17 +195,17 @@ AdjacencyMatrix_apply(AdjacencyMatrixObject* self, PyObject* args, PyObject *key
     
     n = self->n;
     if (!n) {
-        PyErr_SetString(PyExc_RuntimeError, "AdjacencyMatrix.points must be given before calling AdjacencyMatrix.apply");
+        PyErr_SetString(PyExc_RuntimeError, "AdjacencyCore.points must be given before calling AdjacencyCore.apply");
         return NULL;
     }
     
     if (!PyArg_ParseTupleAndKeywords(args, keywds, "O&|p", kwlist, PyArray_Converter, &array, &exact)) {
-        PyErr_Format(PyExc_TypeError, "Invalid input to AdjacencyMatrix.apply");
+        PyErr_Format(PyExc_TypeError, "Invalid input to AdjacencyCore.apply");
         return NULL;
     }
     
     if (PyArray_NDIM(array) != 1 || PyArray_DIM(array, 0) != n) {
-        PyErr_Format(PyExc_ValueError, "First input to AdjacencyMatrix.apply must be a 1D numpy array with %d entries", n);
+        PyErr_Format(PyExc_ValueError, "First input to AdjacencyCore.apply must be a 1D numpy array with %d entries", n);
         Py_DECREF(array);
         return NULL;
     }
@@ -219,7 +221,7 @@ AdjacencyMatrix_apply(AdjacencyMatrixObject* self, PyObject* args, PyObject *key
     
     // PyFloat_AsDouble simply returns -1.0 on errors
     if (PyErr_Occurred()) {
-        PyErr_SetString(PyExc_TypeError, "AdjacencyMatrix.apply requires a vector of floating point numbers");
+        PyErr_SetString(PyExc_TypeError, "AdjacencyCore.apply requires a vector of floating point numbers");
         return NULL;
     }
     
@@ -239,8 +241,9 @@ AdjacencyMatrix_apply(AdjacencyMatrixObject* self, PyObject* args, PyObject *key
     return (PyObject*) array;
 }
 
+#ifdef BUILD_EIGS
 static PyObject *
-AdjacencyMatrix_normalized_eigs(AdjacencyMatrixObject* self, PyObject* args, PyObject* keywds) {
+AdjacencyCore_normalized_eigs(AdjacencyCoreObject* self, PyObject* args, PyObject* keywds) {
 
     int i, j;
     npy_intp vec_dims[2];
@@ -259,12 +262,12 @@ AdjacencyMatrix_normalized_eigs(AdjacencyMatrixObject* self, PyObject* args, PyO
     int rvecs = 1;      // flag for eigenvector computation
     
     if (!n) {
-        PyErr_SetString(PyExc_RuntimeError, "AdjacencyMatrix.points must be given before calling AdjacencyMatrix.eigs");
+        PyErr_SetString(PyExc_RuntimeError, "AdjacencyCore.points must be given before calling AdjacencyCore.eigs");
         return NULL;
     }
     
     if (!PyArg_ParseTupleAndKeywords(args, keywds, "i|diip", kwlist, &nev, &tol, &maxiter, &ncv, &rvecs)) {
-        PyErr_Format(PyExc_TypeError, "Invalid input to AdjacencyMatrix.eigs");
+        PyErr_Format(PyExc_TypeError, "Invalid input to AdjacencyCore.eigs");
         return NULL;
     }
     
@@ -278,7 +281,7 @@ AdjacencyMatrix_normalized_eigs(AdjacencyMatrixObject* self, PyObject* args, PyO
     }
     
     if (maxiter <= 0)
-        maxiter = 300; // this is the default from matlab; in scipy, the it is n*10
+        maxiter = 300; // this is the default from matlab; in scipy, it is n*10
     
     
     // Compute degrees
@@ -389,45 +392,48 @@ AdjacencyMatrix_normalized_eigs(AdjacencyMatrixObject* self, PyObject* args, PyO
     
     return result;
 }
+#endif
 
 
-static PyMemberDef AdjacencyMatrix_members[] = {
-    {"d", T_INT, offsetof(AdjacencyMatrixObject, d), READONLY, "Spatial dimension"},
-    {"sigma", T_DOUBLE, offsetof(AdjacencyMatrixObject, sigma), READONLY, "Sigma for Gaussian kernel"},
-    {"N", T_INT, offsetof(AdjacencyMatrixObject, N), READONLY, "Expansion degree (n in NFFT)"},
-    {"p", T_INT, offsetof(AdjacencyMatrixObject, p), READONLY, "Smoothness parameter"},
-    {"m", T_INT, offsetof(AdjacencyMatrixObject, m), READONLY, "Window cutoff parameter"},
-    {"eps", T_DOUBLE, offsetof(AdjacencyMatrixObject, eps), READONLY, "Outer boundary width"},
-    {"NN", T_INT, offsetof(AdjacencyMatrixObject, NN), READONLY, "Oversampling expansion degree (default: a power of two with 2*N <= NN < 4*N)"},
-    {"diagonal", T_DOUBLE, offsetof(AdjacencyMatrixObject, diagonal), 0, "Value on the diagonal of the adjacency matrix"},
-    {"n", T_INT, offsetof(AdjacencyMatrixObject, n), READONLY, "Number of points given"},
+static PyMemberDef AdjacencyCore_members[] = {
+    {"d", T_INT, offsetof(AdjacencyCoreObject, d), READONLY, "Spatial dimension"},
+    {"sigma", T_DOUBLE, offsetof(AdjacencyCoreObject, sigma), READONLY, "Sigma for Gaussian kernel"},
+    {"N", T_INT, offsetof(AdjacencyCoreObject, N), READONLY, "Expansion degree (n in NFFT)"},
+    {"p", T_INT, offsetof(AdjacencyCoreObject, p), READONLY, "Smoothness parameter"},
+    {"m", T_INT, offsetof(AdjacencyCoreObject, m), READONLY, "Window cutoff parameter"},
+    {"eps", T_DOUBLE, offsetof(AdjacencyCoreObject, eps), READONLY, "Outer boundary width"},
+    {"NN", T_INT, offsetof(AdjacencyCoreObject, NN), READONLY, "Oversampling expansion degree (default: a power of two with 2*N <= NN < 4*N)"},
+    {"diagonal", T_DOUBLE, offsetof(AdjacencyCoreObject, diagonal), 0, "Value on the diagonal of the adjacency matrix"},
+    {"n", T_INT, offsetof(AdjacencyCoreObject, n), READONLY, "Number of points given"},
     {NULL}
 };
 
-static PyMethodDef AdjacencyMatrix_methods[] = {
-    {"apply", (PyCFunction) AdjacencyMatrix_apply, METH_VARARGS | METH_KEYWORDS, "Approximate a matrix-vector product with the adjacency matrix"},
-    {"normalized_eigs", (PyCFunction) AdjacencyMatrix_normalized_eigs, METH_VARARGS | METH_KEYWORDS, "Approximate a few eigenvalues of the symmetrically normalized adjacency matrix"},
+static PyMethodDef AdjacencyCore_methods[] = {
+    {"apply", (PyCFunction) AdjacencyCore_apply, METH_VARARGS | METH_KEYWORDS, "Approximate a matrix-vector product with the adjacency matrix"},
+#ifdef BUILD_EIGS
+    {"normalized_eigs", (PyCFunction) AdjacencyCore_normalized_eigs, METH_VARARGS | METH_KEYWORDS, "Approximate a few eigenvalues of the symmetrically normalized adjacency matrix"},
+#endif
     {NULL}
 };
 
-static PyGetSetDef AdjacencyMatrix_getsetters[] = {
-    {"points", (getter) AdjacencyMatrix_getpoints, (setter) AdjacencyMatrix_setpoints, "Numpy array of 3D points", NULL},
+static PyGetSetDef AdjacencyCore_getsetters[] = {
+    {"points", (getter) AdjacencyCore_getpoints, (setter) AdjacencyCore_setpoints, "Numpy array of 3D points", NULL},
     {NULL}
 };
 
-static PyTypeObject AdjacencyMatrixType = {
+static PyTypeObject AdjacencyCoreType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "fastadj.core.AdjacencyMatrix",
-    .tp_doc = "FastAdjacency AdjacencyMatrix object",
-    .tp_basicsize = sizeof(AdjacencyMatrixObject),
+    .tp_name = "fastadj.core.AdjacencyCore",
+    .tp_doc = "FastAdjacency AdjacencyCore object",
+    .tp_basicsize = sizeof(AdjacencyCoreObject),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_init = (initproc) AdjacencyMatrix_init,
-    .tp_dealloc = (destructor) AdjacencyMatrix_dealloc,
-    .tp_members = AdjacencyMatrix_members,
-    .tp_methods = AdjacencyMatrix_methods,
-    .tp_getset = AdjacencyMatrix_getsetters,
+    .tp_init = (initproc) AdjacencyCore_init,
+    .tp_dealloc = (destructor) AdjacencyCore_dealloc,
+    .tp_members = AdjacencyCore_members,
+    .tp_methods = AdjacencyCore_methods,
+    .tp_getset = AdjacencyCore_getsetters,
 };
 
 static PyModuleDef fastadjcoremodule = {
@@ -445,16 +451,16 @@ PyInit_core(void)
     
     import_array();
     
-    if (PyType_Ready(&AdjacencyMatrixType) < 0)
+    if (PyType_Ready(&AdjacencyCoreType) < 0)
         return NULL;
 
     m = PyModule_Create(&fastadjcoremodule);
     if (m == NULL)
         return NULL;
 
-    Py_INCREF(&AdjacencyMatrixType);
-    if (PyModule_AddObject(m, "AdjacencyMatrix", (PyObject *) &AdjacencyMatrixType) < 0) {
-        Py_DECREF(&AdjacencyMatrixType);
+    Py_INCREF(&AdjacencyCoreType);
+    if (PyModule_AddObject(m, "AdjacencyCore", (PyObject *) &AdjacencyCoreType) < 0) {
+        Py_DECREF(&AdjacencyCoreType);
         Py_DECREF(m);
         return NULL;
     }
