@@ -80,7 +80,10 @@ class AdjacencyMatrix():
         radius = np.sqrt((points ** 2).sum(axis=1).max())
         allowed_radius = 0.2499 - 0.5*self.setup.eps
         
-        if self.core is None or d != self.core.d or radius*self.scaling_factor > allowed_radius:
+        if self.core is None or \
+                d != self.core.d or \
+                radius*self.scaling_factor > allowed_radius or \
+                radius*self.scaling_factor < 0.125:
             self._setup_core(d, allowed_radius / radius)
             
         self.core.points = points * self.scaling_factor
