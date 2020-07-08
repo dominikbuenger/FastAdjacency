@@ -33,4 +33,4 @@ This package mainly consists of the following three classes:
 
 * `AdjacencyMatrix` is a convenient wrapper for `AdjacencyCore`, written in Python. This is the recommended way to use this package.
 
-See [`test/test.py`](test/test.py) for an example.
+See [`test/showcase.ipynb`](test/showcase.ipynb) and [`test/test.py`](test/test.py) for an example.
