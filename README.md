@@ -16,7 +16,7 @@ See [test/showcase.ipynb](test/showcase.ipynb) for an overview over the method.
 
 * Edit `config.ini` and set the `base_dir` variable in the `[NFFT]` section to the path to your NFFT3 installation folder.
 
-* Run `make` and `make install`.
+* Run `make` and `make install`. Optionally run `make check` to test your installation.
 
 * The `[ARPACK]` config options are only experimental and currently not supported.
 
