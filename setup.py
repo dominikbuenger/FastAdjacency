@@ -11,6 +11,11 @@ config.read('config.ini')
 nfft_base = config['NFFT']['base_dir']
 include_dirs = [osp.join(nfft_base, 'include'), osp.join(nfft_base, 'applications', 'fastsum')]
 
+# read numpy include dir
+numpy_include_dir = config['NUMPY']['include_dir']
+if len(numpy_include_dir) > 0:
+    include_dirs.append(numpy_include_dir)
+
 macros = [('MAJOR_VERSION', '0'), ('MINOR_VERSION', '2')]
 
 # check if arpack is available
