@@ -1,37 +1,27 @@
 from distutils.core import setup, Extension
-from configparser import ConfigParser
-import os.path as osp
+import os
+import numpy as np
 
 
-# read config file
-config = ConfigParser()
-config.read('config.ini')
+# read nfft base dir 
+nfft_base = os.environ.get('NFFT_BASE')
+assert nfft_base is not None, 'Environment variable NFFT_BASE must be exported before setup'
 
-# read nfft base dir and set include directories
-nfft_base = config['NFFT']['base_dir']
-include_dirs = [osp.join(nfft_base, 'include'), osp.join(nfft_base, 'applications', 'fastsum')]
+# set include and library directories
+include_dirs = [os.path.join(nfft_base, 'include'), 
+                os.path.join(nfft_base, 'applications', 'fastsum'),
+                os.path.join(np.__path__[0], 'core', 'include')]
 
-# read numpy include dir
-numpy_include_dir = config['NUMPY']['include_dir']
-if len(numpy_include_dir) > 0:
-    include_dirs.append(numpy_include_dir)
+library_dirs = [os.path.join(nfft_base, 'julia', 'fastsum')]
 
 macros = [('MAJOR_VERSION', '0'), ('MINOR_VERSION', '2')]
-
-# check if arpack is available
-arpack_available = int(config['ARPACK']['available'])
-arpack_include_dir = config['ARPACK']['include_dir']
-if arpack_available:
-    macros.append(('BUILD_EIGS', '1'))
-    if arpack_include_dir:
-        include_dirs.append(arpack_include_dir)
-    
 
 # C extension fastadj.core
 core_ext = Extension('fastadj.core',
     define_macros = macros,
     include_dirs = include_dirs,
     libraries = ['fastsumjulia'],
+    runtime_library_dirs = library_dirs,
     sources = ['fastadj/core.c'])
 
 # run setup

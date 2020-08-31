@@ -14,13 +14,11 @@ See [test/showcase.ipynb](test/showcase.ipynb) for an overview over the method.
 
 * Navigate to the FastAdjacency folder.
 
-* Edit `config.ini` and set the `base_dir` variable in the `[NFFT]` section to the path to your NFFT3 installation folder.
+* Export the path to your NFFT3 installation folder as the `NFFT_BASE` environment variable via `export NFFT_BASE=/path/to/your/NFFT/base/directory`. 
 
-* Run `make` and `make install`. Optionally run `make check` to test your installation.
+* From the same terminal, run `make` and `make install`. Optionally run `make check` to test your installation.
 
-* The `[ARPACK]` config options are only experimental and currently not supported.
-
-* To rebuild with a changed config, run `make clean` before `make`.
+* To rebuild, run `make clean` before `make`.
 
 
 # Usage
