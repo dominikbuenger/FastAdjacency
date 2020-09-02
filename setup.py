@@ -21,6 +21,7 @@ core_ext = Extension('fastadj.core',
     define_macros = macros,
     include_dirs = include_dirs,
     libraries = ['fastsumjulia'],
+	library_dirs = library_dirs,
     runtime_library_dirs = library_dirs,
     sources = ['fastadj/core.c'])
 
