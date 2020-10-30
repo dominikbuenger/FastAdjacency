@@ -111,53 +111,8 @@ class AdjacencyMatrix():
         return self.core.apply(v)
     
     def normalized_eigs(self, k=6, method='krylov-schur', shift=1, one_shift=2, tol=None):
-        if tol is None:
-            tol = self.setup.eigs_tol
-            
-        n = self.core.n
-        u1 = np.sqrt(self.core.apply(np.ones(n)))
-        d_invsqrt = 1 / u1
-        u1 /= np.linalg.norm(u1)
-        
-        if k == 1:
-            return np.array([1.0]), u1[:, np.newaxis]
-    
-        def matvec(v):
-            w = d_invsqrt * self.core.apply(d_invsqrt * v)
-            if shift != 0:
-                w += shift*v
-            if one_shift != 0:
-                w -= one_shift * (u1 @ v) * u1
-            return w
-        
-        if one_shift != 0:
-            k -= 1
-        
-        if method == 'arpack-fortran':
-            if not hasattr(self.core, 'normalized_eigs'):
-                raise ValueError("Eigenvalue computation method 'arpack-fortran' has not been built")
-            if shift != 0 or one_shift != 0:
-                raise ValueError("Eigenvalue computation method 'arpack-fortran' is incompatible with shifts")
-            w, U = self.core.normalized_eigs(k, tol=tol)
-        elif method == 'arpack-scipy':
-            operator = LinearOperator((n,n), dtype=np.float64, matvec=matvec)
-            w, U = eigsh(operator, k=k, which='LA' if shift == 0 else 'LM', tol=tol)
-        elif method == 'krylov-schur':
-            w, U = krylov_schur_eigs(matvec, n, k=k, tol=tol)
-        else:
-            raise ValueError("Unknown eigenvalue computation method: {}".format(method))
-            
-        ind = np.argsort(-w)
-        w = w[ind]
-        U = U[:, ind]
-        
-        if shift != 0:
-            w -= shift
-        if one_shift != 0:
-            w = np.hstack((1.0, w))
-            U = np.hstack((u1[:,np.newaxis], U))
-        
-        return w, U
+        return normalized_eigs(self.core, k, method, shift, one_shift, 
+                               self.setup.eigs_tol if tol is None else tol)
         
 
 
@@ -180,3 +135,49 @@ class AdjacencyMatrix():
         return nrm
     
     
+
+def normalized_eigs(core, k=6, method='krylov-schur', shift=1, one_shift=2, tol=0):
+    n = core.n
+    u1 = np.sqrt(core.apply(np.ones(n)))
+    d_invsqrt = 1 / u1
+    u1 /= np.linalg.norm(u1)
+    
+    if k == 1:
+        return np.array([1.0]), u1[:, np.newaxis]
+
+    def matvec(v):
+        w = d_invsqrt * core.apply(d_invsqrt * v)
+        if shift != 0:
+            w += shift*v
+        if one_shift != 0:
+            w -= one_shift * (u1 @ v) * u1
+        return w
+    
+    if one_shift != 0:
+        k -= 1
+    
+    if method == 'arpack-fortran':
+        if not hasattr(core, 'normalized_eigs'):
+            raise ValueError("Eigenvalue computation method 'arpack-fortran' has not been built")
+        if shift != 0 or one_shift != 0:
+            raise ValueError("Eigenvalue computation method 'arpack-fortran' is incompatible with shifts")
+        w, U = core.normalized_eigs(k, tol=tol)
+    elif method == 'arpack-scipy':
+        operator = LinearOperator((n,n), dtype=np.float64, matvec=matvec)
+        w, U = eigsh(operator, k=k, which='LA' if shift == 0 else 'LM', tol=tol)
+    elif method == 'krylov-schur':
+        w, U = krylov_schur_eigs(matvec, n, k=k, tol=tol)
+    else:
+        raise ValueError("Unknown eigenvalue computation method: {}".format(method))
+        
+    ind = np.argsort(-w)
+    w = w[ind]
+    U = U[:, ind]
+    
+    if shift != 0:
+        w -= shift
+    if one_shift != 0:
+        w = np.hstack((1.0, w))
+        U = np.hstack((u1[:,np.newaxis], U))
+    
+    return w, U
