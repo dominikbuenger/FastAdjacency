@@ -8,11 +8,7 @@ nfft_base = os.environ.get('NFFT_BASE')
 assert nfft_base is not None, 'Environment variable NFFT_BASE must be exported before setup'
 
 # set include and library directories
-include_dirs = [os.path.join(nfft_base, 'include'), 
-                os.path.join(nfft_base, 'applications', 'fastsum'),
-                os.path.join(np.__path__[0], 'core', 'include')]
-
-library_dirs = [os.path.join(nfft_base, 'julia', 'fastsum')]
+include_dirs = [os.path.join(np.__path__[0], 'core', 'include')]
 
 macros = [('MAJOR_VERSION', '0'), ('MINOR_VERSION', '2')]
 
@@ -20,9 +16,9 @@ macros = [('MAJOR_VERSION', '0'), ('MINOR_VERSION', '2')]
 core_ext = Extension('fastadj.core',
     define_macros = macros,
     include_dirs = include_dirs,
-    libraries = ['fastsumjulia'],
-	library_dirs = library_dirs,
-    runtime_library_dirs = library_dirs,
+    libraries = ['nfftjulia', 'fftw', 'm'],
+	library_dirs = [],
+    runtime_library_dirs = [],
     sources = ['fastadj/core.c'])
 
 # run setup
