@@ -8,7 +8,7 @@
 #include <complex.h>
 #include <math.h>
 
-#include "fastsum_replacement.c"´
+#include "fastsum_replacement.c"
 
 
 typedef struct {
