@@ -81,19 +81,22 @@ class AdjacencyMatrix():
     
     @points.setter
     def points(self, points):
+        self.set_points(points)
         
+    def set_points(self, points, scaling=0.001):
         d = points.shape[1]
         
-        self.points_center = points.mean(axis=0)
-        points -= self.points_center
+        if scaling is not None:
+            self.points_center = points.mean(axis=0)
+            points -= self.points_center
         
-        radius = np.sqrt((points ** 2).sum(axis=1).max())
-        allowed_radius = 0.2499 - 0.5*self.setup.eps
+            radius = np.sqrt((points ** 2).sum(axis=1).max())
+            allowed_radius = 0.25 - scaling - 0.5*self.setup.eps
         
         if self.core is None or \
                 d != self.core.d or \
                 radius*self.scaling_factor > allowed_radius or \
-                radius*self.scaling_factor < 0.125:
+                radius*self.scaling_factor < 0.5*allowed_radius:
             self.scaling_factor = allowed_radius / radius
             self._setup_core(d)
             
@@ -138,7 +141,7 @@ class AdjacencyMatrix():
 
 def normalized_eigs(core, k=6, method='krylov-schur', shift=1, one_shift=2, tol=0):
     n = core.n
-    u1 = np.sqrt(core.apply(np.ones(n)))
+    u1 = np.sqrt(np.minimum(core.apply(np.ones(n)), 0.0))
     d_invsqrt = 1 / u1
     u1 /= np.linalg.norm(u1)
     
