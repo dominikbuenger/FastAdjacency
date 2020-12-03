@@ -141,8 +141,11 @@ class AdjacencyMatrix():
 
 def normalized_eigs(core, k=6, method='krylov-schur', shift=1, one_shift=2, tol=0):
     n = core.n
-    u1 = np.sqrt(np.minimum(core.apply(np.ones(n)), 0.0))
-    d_invsqrt = 1 / u1
+    u1 = np.sqrt(np.maximum(core.apply(np.ones(n)), 0.0))
+    
+    d_invsqrt = np.zeros(n)
+    d_invsqrt[u1 > tol] = 1 / u1[u1 > tol]
+    
     u1 /= np.linalg.norm(u1)
     
     if k == 1:
