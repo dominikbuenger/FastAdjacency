@@ -84,11 +84,13 @@ class AdjacencyMatrix():
         self.set_points(points)
         
     def set_points(self, points, scaling=0.001):
+        
+        assert isinstance(points, np.ndarray) and points.ndim == 2, ValueError("AdjacencyMatrix points must be given as a 2-d numpy array")
         d = points.shape[1]
         
         if scaling is not None:
             self.points_center = points.mean(axis=0)
-            points -= self.points_center
+            points = points - self.points_center
         
             radius = np.sqrt((points ** 2).sum(axis=1).max())
             allowed_radius = 0.25 - scaling - 0.5*self.setup.eps
