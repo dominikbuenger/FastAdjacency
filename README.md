@@ -10,7 +10,10 @@ See [test/showcase.ipynb](test/showcase.ipynb) for an overview over the method.
 
 * This software currently depends on the *Julia interface* of the NFFT3 library.
   - Download the NFFT3 source from [https://github.com/NFFT/nfft](https://github.com/NFFT/nfft).
+  - When building the prerequesite FFTW3, make sure to call the configure script with `--enable-shared --enable-openmp --enable-threads`.
   - Configure, build and install NFFT3 following the instructions on the homepage. Make sure to configure the library with `--enable-julia`.
+
+* Call `echo $LD_LIBRARY_PATH` to make sure that it contains `/usr/local/lib`, where the shared libraries of FFTW and NFFT are installed. If not, add the line `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib` to your `~/.bashrc` file and run `source ~/.bashrc`.
 
 * Navigate to the FastAdjacency folder.
 
