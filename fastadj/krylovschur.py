@@ -4,7 +4,7 @@ from scipy.linalg import eigh
 
 
 
-def krylov_schur_eigs(operator, n, k=6, tol=0):
+def krylov_schur_eigs(operator, n, k=6, tol=0, W=None):
     if tol is None or tol <= 0:
         tol = 1e-14
     max_iter = 300
@@ -13,6 +13,8 @@ def krylov_schur_eigs(operator, n, k=6, tol=0):
     k0 = k
     
     v = np.random.randn(n)
+    if W is not None:
+        v -= W @ (W.T @ v)
     v /= np.linalg.norm(v)
     
     V = np.zeros((n,p))
@@ -39,7 +41,7 @@ def krylov_schur_eigs(operator, n, k=6, tol=0):
             else:
                 r -= (alpha*v + r_norm * V[:,jj-1])
 
-            v, r_norm = robust_reorth(r, V, jj+1)
+            v, r_norm = robust_reorth(r, V[:,:jj+1], W)
             if v is None:
                 raise RuntimeError('Krylov-Schur eigenvalue computation: Unable to orthogonalize residual')
             
@@ -84,11 +86,13 @@ def krylov_schur_eigs(operator, n, k=6, tol=0):
 
 
 
-def robust_reorth(x, V, size, num_reorth=5, num_restarts=3, tol=1e-10):
+def robust_reorth(x, V, W=None, num_reorth=5, num_restarts=3, tol=1e-10):
     norm = np.linalg.norm(x)
     
     for _ in range(num_reorth):
-        x -= V[:,:size] @ (V[:,:size].T @ x)
+        x -= V @ (V.T @ x)
+        if W is not None:
+            x -= W @ (W.T @ x)
         
         norm_new = np.linalg.norm(x)
         if norm_new > norm / np.sqrt(2):
@@ -101,13 +105,15 @@ def robust_reorth(x, V, size, num_reorth=5, num_restarts=3, tol=1e-10):
     
     for __ in range(num_restarts):
         x = np.random.randn(x.size)
-        VTx = V[:,:size].T @ x
+        VTx = V.T @ x
         # x /= np.linalg.norm(x)
         
         for _ in range(num_reorth):
-            x -= V[:,:size] @ VTx
+            x -= V @ VTx
+            if W is not None:
+                x -= W @ (W.T @ x)
             x /= np.linalg.norm(x)
-            VTx = V[:,:size].T @ x
+            VTx = V.T @ x
             
             if abs(1 - np.linalg.norm(x)) < tol and all(abs(VTx) < tol):
                 return x, 0.0

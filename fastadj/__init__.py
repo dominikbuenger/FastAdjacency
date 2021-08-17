@@ -6,6 +6,8 @@ from scipy.sparse.linalg import eigsh, LinearOperator
 
 from .krylovschur import krylov_schur_eigs
 
+from warnings import warn
+
 class AccuracySetup:
     presets = {
         'rough': (16, 1, 2, 0.0, 1e-2),
@@ -116,8 +118,15 @@ class AdjacencyMatrix():
         return self.core.apply(v)
     
     def normalized_eigs(self, k=6, method='krylov-schur', shift=1, one_shift=2, tol=None):
-        return normalized_eigs(self.core, k, method, shift, one_shift, 
-                               self.setup.eigs_tol if tol is None else tol)
+        # return normalized_eigs(self.core, k, method, shift, one_shift, 
+        #                        self.setup.eigs_tol if tol is None else tol)
+        if shift != 1:
+            warn("AdjacencyMatrix.normalized_eigs: argument 'shift' is deprecated and no longer used.", DeprecationWarning)
+        if one_shift != 2:
+            warn("AdjacencyMatrix.normalized_eigs: argument 'one_shift' is deprecated and no longer used.", DeprecationWarning)
+            
+        return normalized_eigs_wielandt(self.core, k=k, 
+                                        tol=self.setup.eigs_tol if tol is None else tol)
         
 
 
@@ -139,7 +148,33 @@ class AdjacencyMatrix():
         
         return nrm
     
+
+def normalized_eigs_wielandt(core, k=6, tol=0):
+    n = core.n
+    u1 = np.sqrt(np.maximum(core.apply(np.ones(n)), 0.0))
     
+    d_invsqrt = np.zeros(n)
+    d_invsqrt[u1 > tol] = 1 / u1[u1 > tol]
+    
+    u1 /= np.linalg.norm(u1)
+    u1 = u1[:,None]
+    
+    if k == 1:
+        return np.array([1.0]), u1
+
+    matvec = lambda v: d_invsqrt * core.apply(d_invsqrt * v) + v
+    w, U = krylov_schur_eigs(matvec, n, k=k-1, tol=tol, W=u1)
+
+    ind = np.argsort(-w)
+    w = w[ind] - 1
+    U = U[:, ind]
+    
+    w = np.hstack((1.0, w))
+    U = np.hstack((u1, U))
+    
+    return w, U
+
+
 
 def normalized_eigs(core, k=6, method='krylov-schur', shift=1, one_shift=2, tol=0):
     n = core.n
